@@ -1,32 +1,34 @@
 #define NCURSES_WIDECHAR 1
-#include <locale.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <limits.h>
+#include <locale.h>
+#include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ncurses.h>
-#include <wchar.h>
 #include <sys/stat.h>
-#include <limits.h>
+#include <unistd.h>
+#include <wchar.h>
 
-// Each string has len=strlen(str), and str is a pointer to some char* in file_data
-typedef struct LenStr_s {
-	wchar_t *str;
+// Each string has len=wcslen(str), and str is a pointer to some wchar* in file_data
+typedef struct LenStr_s
+{
+	wchar_t* str;
 	int len;
 } LenStr_t;
 
-//	Basic structure: read whole file in memory, counting strings and making table of strings
-typedef struct WndFile_s {
+//	Basic structure: read file in memory, count strings and make table of LenStr_t
+typedef struct WndFile_s
+{
 	off_t file_size;
 	size_t row_offset;
 	size_t line_current;
 	size_t lines_total;
-	size_t path_size; // strlen(path)
-	WINDOW *win;
-	wchar_t *file_data; // raw file date, where \n changed to \000
-	LenStr_t *lines;
-	char path[PATH_MAX];
+	size_t path_size;   // strlen(path)
+	WINDOW* win;
+	wchar_t* file_data; // file data converted to wchar and where \n changed to \000
+	LenStr_t* lines;
+	char path[];
 } WndFile_t;
 
 // Upper line for info, so height must be decremented
@@ -37,40 +39,39 @@ const int CONST_HEIGHT_DECREMENT = 1;
 #define KEY_ESC 27
 #endif
 
-void wnd_file_free(WndFile_t **ptr_to_wnd_file);
-WndFile_t *wnd_file_make(const char *path_to_file);
-bool wnd_file_is_invalid(const WndFile_t *wf);
-void wnd_file_draw(const WndFile_t *wf);
-bool wnd_file_page_up(WndFile_t *wf);
-bool wnd_file_page_down(WndFile_t *wf);
-bool wnd_file_line_up(WndFile_t *wf);
-bool wnd_file_to_begin(WndFile_t *wf);
-bool wnd_file_line_down(WndFile_t *wf);
-bool wnd_file_to_end(WndFile_t *wf);
-bool wnd_file_row_left(WndFile_t *wf);
-bool wnd_file_row_right(WndFile_t *wf);
+void wnd_file_free(WndFile_t** ptr_to_wnd_file);
+WndFile_t* wnd_file_make(const char* path_to_file);
+bool wnd_file_is_invalid(const WndFile_t* wf);
+void wnd_file_draw(const WndFile_t* wf);
+bool wnd_file_page_up(WndFile_t* wf);
+bool wnd_file_page_down(WndFile_t* wf);
+bool wnd_file_line_up(WndFile_t* wf);
+bool wnd_file_to_begin(WndFile_t* wf);
+bool wnd_file_line_down(WndFile_t* wf);
+bool wnd_file_to_end(WndFile_t* wf);
+bool wnd_file_row_left(WndFile_t* wf);
+bool wnd_file_row_right(WndFile_t* wf);
 
-#define LLG()                                                   \
-	{                                                           \
-		fprintf(stderr, "\r%s : %d\n", __FUNCTION__, __LINE__); \
-		fflush(stdout);                                         \
-	}
 /*
-
+	Main routine
 */
-int main(int argc, const char *argv[])
+int main(int argc, const char* argv[])
 {
-	const char *file_path = "./test_file.txt";
+	const char* file_path = "./test_file.txt";
 
 	setlocale(LC_ALL, "");
 
-	if (argc < 2 || argv[1] == NULL) {
+	if (argc < 2 || argv[1] == NULL)
+	{
 		fprintf(stderr, "\rmissed file to show: defaulting to %s\n", file_path);
-	} else {
+	}
+	else
+	{
 		file_path = argv[1];
 	}
 
-	if (initscr() == NULL) {
+	if (initscr() == NULL)
+	{
 		fprintf(stderr, "\rinitscr() error %d\n", errno);
 		return (EXIT_FAILURE);
 	}
@@ -81,9 +82,10 @@ int main(int argc, const char *argv[])
 	init_pair(1, COLOR_WHITE, COLOR_BLUE);
 	init_pair(2, COLOR_CYAN, COLOR_BLACK);
 
-	WndFile_t *wf;
+	WndFile_t* wf;
 
-	if ((wf = wnd_file_make(file_path)) == NULL) {
+	if ((wf = wnd_file_make(file_path)) == NULL)
+	{
 		endwin();
 		return (EXIT_FAILURE);
 	}
@@ -92,11 +94,13 @@ int main(int argc, const char *argv[])
 
 	bool fBreakLoop = false;
 
-	while (!fBreakLoop) {
+	while (!fBreakLoop)
+	{
 		int key = wgetch(wf->win);
 		bool fUpdate = false;
 
-		switch (key) {
+		switch (key)
+		{
 		case 'q':
 		case KEY_ESC:
 			fBreakLoop = true;
@@ -136,7 +140,8 @@ int main(int argc, const char *argv[])
 			break;
 		}
 
-		if (fUpdate) {
+		if (fUpdate)
+		{
 			wnd_file_draw(wf);
 		}
 	}
@@ -148,19 +153,21 @@ int main(int argc, const char *argv[])
 }
 
 /*
-
+	Free WndFile_t structure. Argument must be address of pointer
 */
-void wnd_file_free(WndFile_t **ptr_to_wnd_file)
+void wnd_file_free(WndFile_t** ptr_to_wnd_file)
 {
-	WndFile_t *wf;
+	WndFile_t* wf;
 	if (ptr_to_wnd_file == NULL || ((wf = *ptr_to_wnd_file) == NULL))
 		return;
 
-	if (wf->lines != NULL) {
+	if (wf->lines != NULL)
+	{
 		free(wf->lines);
 	}
 
-	if (wf->file_data != NULL) {
+	if (wf->file_data != NULL)
+	{
 		free(wf->file_data);
 	}
 
@@ -170,47 +177,50 @@ void wnd_file_free(WndFile_t **ptr_to_wnd_file)
 }
 
 /*
-
+	Allocate, read, parse and make table of LenStr_t
 */
-WndFile_t *wnd_file_make(const char *path_to_file)
+WndFile_t* wnd_file_make(const char* path_to_file)
 {
-	if (path_to_file == NULL || *path_to_file == 0) {
+	if (path_to_file == NULL || *path_to_file == 0)
+	{
 		fprintf(stderr, "\r%s: invalid params\n", __FUNCTION__);
 		return NULL;
 	}
 
-	off_t i = sizeof(WndFile_t);
-	WndFile_t *wf = (WndFile_t *)malloc(i);
+	off_t i = sizeof(WndFile_t) + strlen(path_to_file) + 8;
+	WndFile_t* wf = (WndFile_t*)malloc(i);
 
-	if (wf == NULL) {
+	if (wf == NULL)
+	{
 		fprintf(stderr, "\r%s: malloc(%ld) error %d\n", __FUNCTION__, i, errno);
 		return NULL;
 	}
 
 	memset(wf, 0, i);
 
-	strncpy(wf->path, path_to_file, PATH_MAX - 1);
-
-	wf->path[sizeof(wf->path) - 1] = 0;
+	strcpy(wf->path, path_to_file);
 
 	wf->path_size = strlen(wf->path);
 
 	struct stat stinfo;
-	if (stat(wf->path, &stinfo) == -1) {
+	if (stat(wf->path, &stinfo) == -1)
+	{
 		free(wf);
 
 		fprintf(stderr, "\r%s: stat(%s) error %d\n", __FUNCTION__, path_to_file,
-				errno);
+			errno);
 
 		return NULL;
 	}
 
 	wf->file_size = stinfo.st_size;
 
+	// with reserve for unterminated last string via \n
 	i = (wf->file_size + 2) * sizeof(wchar_t);
-	wf->file_data = (wchar_t *)malloc(i);
+	wf->file_data = (wchar_t*)malloc(i);
 
-	if (wf->file_data == NULL) {
+	if (wf->file_data == NULL)
+	{
 		free(wf);
 		fprintf(stderr, "\r%s: malloc(%ld) error %d\n", __FUNCTION__, i, errno);
 
@@ -220,25 +230,30 @@ WndFile_t *wnd_file_make(const char *path_to_file)
 	memset(wf->file_data, 0, i);
 
 	wchar_t wc;
-	wchar_t *wp = wf->file_data;
+	wchar_t* wp = wf->file_data;
 
-	FILE *fp = fopen(wf->path, "rt");
+	FILE* fp = fopen(wf->path, "rt");
 
-	if (fp == NULL) {
+	if (fp == NULL)
+	{
 		fprintf(stderr, "\r%s: fopen(%s) error %d\n", __FUNCTION__,
-				path_to_file, errno);
+			path_to_file, errno);
 
 		goto BadBranch;
 	}
 
-	if (wf->file_size) {
+	// only parsing - not changing \n to \000
+	if (wf->file_size)
+	{
 		wf->lines_total++;
 
-		while (true) {
+		while (true)
+		{
 			if ((wc = fgetwc(fp)) == (wchar_t)WEOF)
 				break;
 
-			if ((*wp++ = wc) == L'\n') {
+			if ((*wp++ = wc) == L'\n')
+			{
 				wf->lines_total++;
 			}
 		}
@@ -254,9 +269,10 @@ WndFile_t *wnd_file_make(const char *path_to_file)
 	i = (wf->lines_total + 2);
 	i *= sizeof(LenStr_t);
 
-	wf->lines = (LenStr_t *)malloc(i);
+	wf->lines = (LenStr_t*)malloc(i);
 
-	if (wf->lines == NULL) {
+	if (wf->lines == NULL)
+	{
 		fprintf(stderr, "\r%s: malloc(%ld) error %d\n", __FUNCTION__, i, errno);
 		goto BadBranch;
 	}
@@ -266,22 +282,28 @@ WndFile_t *wnd_file_make(const char *path_to_file)
 	i = 0;
 	wf->lines[i].str = wf->file_data;
 
-	wp = (wchar_t *)wf->file_data;
-	for (off_t n = 0; n < wf->file_size; ++n, ++wp) {
-		if (*wp == L'\n') {
+	wp = (wchar_t*)wf->file_data;
+
+	// make table and change \n to \000 to calculate wcslen
+	for (off_t n = 0; n < wf->file_size; ++n, ++wp)
+	{
+		if (*wp == L'\n')
+		{
 			*wp = 0;
 			wf->lines[i].len = wcslen(wf->lines[i].str);
 			wf->lines[++i].str = &wp[1];
 		}
 	}
 
-	if (wf->lines[i].str != NULL) {
+	if (wf->lines[i].str != NULL)
+	{
 		wf->lines[i].len = wcslen(wf->lines[i].str);
 	}
 
 	wf->win = newwin(LINES, COLS, 0, 0);
 
-	if (wf->win == NULL) {
+	if (wf->win == NULL)
+	{
 		goto BadBranch;
 	}
 
@@ -293,15 +315,18 @@ WndFile_t *wnd_file_make(const char *path_to_file)
 
 BadBranch:
 
-	if (fp != NULL) {
+	if (fp != NULL)
+	{
 		fclose(fp);
 	}
 
-	if (wf->file_data != NULL) {
+	if (wf->file_data != NULL)
+	{
 		free(wf->file_data);
 	}
 
-	if (wf->lines != NULL) {
+	if (wf->lines != NULL)
+	{
 		free(wf->lines);
 	}
 
@@ -311,9 +336,9 @@ BadBranch:
 }
 
 /*
-
+	check if structure corrupted
 */
-bool wnd_file_is_invalid(const WndFile_t *wf)
+bool wnd_file_is_invalid(const WndFile_t* wf)
 {
 	if (wf == NULL)
 		return true;
@@ -333,12 +358,9 @@ bool wnd_file_is_invalid(const WndFile_t *wf)
 /*
 
 */
-void wnd_file_draw(const WndFile_t *wf)
+void wnd_file_draw(const WndFile_t* wf)
 {
 	int width, height, i;
-	char buf[PATH_MAX + 1024];
-	size_t idx;
-	(void)width;
 
 	if (wnd_file_is_invalid(wf))
 		return;
@@ -349,6 +371,7 @@ void wnd_file_draw(const WndFile_t *wf)
 
 	wmove(wf->win, 0, 0);
 
+	char buf[1024];
 	memset(buf, '-', width);
 	buf[width] = 0;
 	wattron(wf->win, COLOR_PAIR(1));
@@ -359,7 +382,7 @@ void wnd_file_draw(const WndFile_t *wf)
 	mvwaddstr(wf->win, 0, 1, wf->path);
 
 	i = snprintf(buf, sizeof(buf) - 1, "Line:%lu/%lu", wf->line_current,
-				 wf->lines_total);
+		wf->lines_total);
 
 	mvwaddstr(wf->win, 0, width - i - 1, buf);
 
@@ -373,7 +396,8 @@ void wnd_file_draw(const WndFile_t *wf)
 
 	wattroff(wf->win, COLOR_PAIR(1));
 
-	if (height < 1) {
+	if (height < 1)
+	{
 		wrefresh(wf->win);
 		return;
 	}
@@ -382,40 +406,44 @@ void wnd_file_draw(const WndFile_t *wf)
 
 	wmove(wf->win, 1, 1);
 
-	idx = wf->line_current;
+	size_t idx = wf->line_current;
+	
+	static const int dx = 5;
+	width -= (dx + 1);
+	if (idx < wf->lines_total)
+	{
+		LenStr_t* pTbl = &wf->lines[idx];
 
-	width -= 6;
-	if (idx < wf->lines_total) {
-		LenStr_t *pTbl = &wf->lines[idx];
-
-		for (int n = 0; n < height; ++n, ++idx, ++pTbl) {
+		for (int n = 0; n < height; ++n, ++idx, ++pTbl)
+		{
 			if (idx >= wf->lines_total || pTbl->str == NULL)
 				break;
 
 			wattron(wf->win, COLOR_PAIR(2));
 			mvwprintw(wf->win, 1 + n, 0, "%4lu", idx + 1);
 			wattroff(wf->win, COLOR_PAIR(2));
-			if (wf->row_offset == 0)						
+			if (wf->row_offset == 0)
 			{
-				mvwaddnwstr(wf->win, 1 + n, 5, pTbl->str, pTbl->len < width ? pTbl->len : width);			
+				mvwaddnwstr(wf->win, 1 + n, dx, pTbl->str, pTbl->len < width ? pTbl->len : width);
 			}
-			else {
+			else
+			{
 				int len = pTbl->len - wf->row_offset;
-				if (len > 0 ) {
-					mvwaddnwstr(wf->win, 1 + n, 5, &pTbl->str[wf->row_offset], len < width ? len : width);			
+				if (len > 0)
+				{
+					mvwaddnwstr(wf->win, 1 + n, dx, &pTbl->str[wf->row_offset], len < width ? len : width);
 				}
 			}
-			
 		}
 	}
-
+	wmove(wf->win, 1, dx);
 	wrefresh(wf->win);
 }
 
 /*
 
 */
-bool wnd_file_page_up(WndFile_t *wf)
+bool wnd_file_page_up(WndFile_t* wf)
 {
 	int width, height;
 	(void)width;
@@ -441,7 +469,7 @@ bool wnd_file_page_up(WndFile_t *wf)
 /*
 
 */
-bool wnd_file_page_down(WndFile_t *wf)
+bool wnd_file_page_down(WndFile_t* wf)
 {
 	int width, height;
 	(void)width;
@@ -466,7 +494,7 @@ bool wnd_file_page_down(WndFile_t *wf)
 /*
 
 */
-bool wnd_file_line_up(WndFile_t *wf)
+bool wnd_file_line_up(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;
@@ -482,24 +510,24 @@ bool wnd_file_line_up(WndFile_t *wf)
 /*
 
 */
-bool wnd_file_to_begin(WndFile_t *wf)
+bool wnd_file_to_begin(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;
 
-	if (wf->line_current == 0)
+	if (wf->line_current == 0 && wf->row_offset == 0)
 		return false;
 
 	wf->line_current = 0;
 	wf->row_offset = 0;
-	
+
 	return true;
 }
 
 /*
 
 */
-bool wnd_file_line_down(WndFile_t *wf)
+bool wnd_file_line_down(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;
@@ -516,24 +544,24 @@ bool wnd_file_line_down(WndFile_t *wf)
 /*
 
 */
-bool wnd_file_to_end(WndFile_t *wf)
+bool wnd_file_to_end(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;
 
-	if (wf->line_current == wf->lines_total )
+	if (wf->line_current == wf->lines_total)
 		return false;
 
 	wf->line_current = wf->lines_total;
 	wf->row_offset = 0;
-	
+
 	return true;
 }
 
 /*
 
 */
-bool wnd_file_row_left(WndFile_t *wf)
+bool wnd_file_row_left(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;
@@ -549,7 +577,7 @@ bool wnd_file_row_left(WndFile_t *wf)
 /*
 
 */
-bool wnd_file_row_right(WndFile_t *wf)
+bool wnd_file_row_right(WndFile_t* wf)
 {
 	if (wnd_file_is_invalid(wf))
 		return false;

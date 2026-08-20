@@ -1,6 +1,6 @@
 CC=cc
 LDLIBS=-lncursesw
-CFLAGS=-Wall
+CFLAGS=-Wall -Wextra -Werror -std=c11
 
 %: %.c*
 	$(CC) $(CFLAGS) $< $(LDLIBS) -o $@

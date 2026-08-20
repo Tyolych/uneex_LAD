@@ -1,6 +1,6 @@
 CONFIG -= qt core widgets
-CONFIG += c11
 TEMPLATE = app
+QMAKE_CFLAGS=-Wall -Wextra -Werror -std=c11
 TARGET = Show
 INCLUDEPATH += .
 LIBS += -lncursesw
